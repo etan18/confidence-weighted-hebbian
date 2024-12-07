@@ -216,3 +216,72 @@ class HebbianTrainer(Trainer):
                 return output_transform(x, y)
 
         return Engine(_update)
+    
+    
+class RobustHebbianTrainer(HebbianTrainer):
+    """
+    Extends the HebbianTrainer to implement the Robust Hebbian Learning approach
+    
+    Introduces:
+    - Confidence-weighted updates
+    - Orthogonalization mechanism
+    """
+    
+    def __init__(self, model: torch.nn.Sequential, optimizer: Optimizer, 
+                 learning_rate: float = 0.1, supervised_from: int = -1, freeze_layers: List[str] = None,
+                 complete_forward: bool = False, single_forward: bool = False,
+                 device: Optional[Union[str, torch.device]] = None):
+
+        super().__init__(
+            model=model, 
+            learning_rule=RobustHebbianLearningRule(learning_rate=learning_rate), 
+            optimizer=optimizer,
+            supervised_from=supervised_from,
+            freeze_layers=freeze_layers,
+            complete_forward=complete_forward,
+            single_forward=single_forward,
+            device=device
+        )
+        
+        self.logger.info("Initialized Robust Hebbian Trainer with confidence-weighted updates")
+        
+        
+    def create_hebbian_trainer(self, model: torch.nn.Module, learning_rule, optimizer, device=None, non_blocking=False,
+                               prepare_batch=utils.prepare_batch,
+                               output_transform=lambda x, y: 0):
+        # This is the same as in HebbianTrainer, but we add a step to set current_layer_name for the rule
+        def _update(_, batch: Sequence[torch.Tensor]):
+            model.train()
+            with torch.no_grad():
+                x, y = prepare_batch(batch, device=device, non_blocking=non_blocking)
+                if self.single_forward:
+                    self._forward(x, model)
+
+                for layer_index, layer_name, layer in self.layers:
+                    self.logger.debug("Updating layer '{}' with shape {}.".format(layer, layer.weight.shape))
+                    if self.single_forward:
+                        inputs, outputs, weights = self._prepare_data2(layer, layer_name)
+                        # For the robust rule, we need to set which layer we are updating
+                        if hasattr(learning_rule, 'current_layer_name'):
+                            learning_rule.current_layer_name = layer_name
+                        else:
+                            setattr(learning_rule, 'current_layer_name', layer_name)
+                        d_p = learning_rule.update(inputs, weights)
+                    else:
+                        inputs, weights = self._prepare_data(x, model, layer_index)
+                        if hasattr(learning_rule, 'current_layer_name'):
+                            learning_rule.current_layer_name = layer_name
+                        else:
+                            setattr(learning_rule, 'current_layer_name', layer_name)
+                        d_p = learning_rule.update(inputs, weights)
+
+                    d_p = d_p.view(*layer.weight.size())
+                    optimizer.local_step(d_p, layer_name=layer_name)
+
+                return output_transform(x, y)
+
+        return Engine(_update)
+        
+        
+        
+    
