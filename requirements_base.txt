@@ -2,7 +2,7 @@ tensorboard==2.3.0
 pytorch-ignite==0.4.*
 matplotlib
 numpy
-Pillow
+Pillow==9.5.0
 scikit-image
 scikit-learn
 scipy

@@ -63,6 +63,8 @@ class HebbianEvaluator(Evaluator):
 
         self.engine = self.create_hebbian_evaluator(self._run)
         self._init_metrics()
+        
+        self.initialized = False
 
     @staticmethod
     def create_hebbian_evaluator(run_function) -> Engine:
@@ -112,7 +114,9 @@ class HebbianEvaluator(Evaluator):
         self.logger.info(
             "Supervised training from layer '{}'.".format(list(self.model.named_children())[self.supervised_from][0]))
 
-        self._init(train_loader, val_loader)
+        if not self.initialized:
+            self._init(train_loader, val_loader)
+            self.initialized = True
 
         layers = list(self.model.children())
         # Freeze the Hebbian trained layers
@@ -121,11 +125,11 @@ class HebbianEvaluator(Evaluator):
                 param.requires_grad = False
 
         # Re-initialize weights for the supervised layers
-        for lyr in layers[self.supervised_from:]:
-            try:
-                lyr.reset_parameters()
-            except AttributeError:
-                pass
+        # for lyr in layers[self.supervised_from:]:
+        #     try:
+        #         lyr.reset_parameters()
+        #     except AttributeError:
+        #         pass
 
         self._trainer.run(train_loader=train_loader, epochs=self.epochs)
 

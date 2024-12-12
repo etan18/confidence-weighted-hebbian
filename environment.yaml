@@ -1,0 +1,9 @@
+name: hebb
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - anaconda
+  - pip
+  - pip:
+    - -r requirements_gpu.txt

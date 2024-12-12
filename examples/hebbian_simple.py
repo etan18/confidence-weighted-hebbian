@@ -16,7 +16,7 @@ def main():
     transform = transforms.Compose([
         transforms.ToTensor(),
     ])
-    dataset = datasets.mnist.MNIST(root=config.DATASETS_DIR, download=True, transform=transform)
+    dataset = datasets.MNIST(root='data', download=True, transform=transform)
     train_loader = DataLoader(dataset, batch_size=1024, shuffle=True)
 
     # Creating the learning rule, optimizer and trainer

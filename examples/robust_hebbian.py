@@ -20,7 +20,7 @@ from pytorch_hebbian.handlers.tqdm_logger import TqdmLogger
 from pytorch_hebbian.learning_rules import KrotovsRule, RobustHebbsRule
 from pytorch_hebbian.metrics import UnitConvergence
 from pytorch_hebbian.optimizers import Local
-from pytorch_hebbian.trainers import HebbianTrainer, SupervisedTrainer
+from pytorch_hebbian.trainers import RobustHebbianTrainer, SupervisedTrainer
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -103,7 +103,7 @@ def attach_handlers(run, model, optimizer, learning_rule, trainer, evaluator, tr
 def main(args: Namespace, params: dict, dataset_name, run_postfix=""):
     # Creating an identifier for this run
     identifier = time.strftime("%Y%m%d-%H%M%S")
-    run = '{}/heb/{}'.format(dataset_name, identifier)
+    run = '{}/rob-heb/{}'.format(dataset_name, identifier)
     if run_postfix:
         run += '-' + run_postfix
     print("Starting run '{}'".format(run))
@@ -119,7 +119,7 @@ def main(args: Namespace, params: dict, dataset_name, run_postfix=""):
     train_loader, val_loader = data.get_data(params, dataset_name, subset=10000)
 
     # Define learning rule, evaluator, and trainer
-    learning_rule = KrotovsRule(delta=params['delta'], k=params['k'], norm=params['norm'], normalize=False)
+    learning_rule = RobustHebbsRule()
     optimizer = Local(named_params=model.named_parameters(), lr=params['lr'])
     evaluator = HebbianEvaluator(
         model=model,
@@ -128,7 +128,7 @@ def main(args: Namespace, params: dict, dataset_name, run_postfix=""):
         epochs=500,
         supervised_from=-1
     )
-    trainer = HebbianTrainer(model=model, learning_rule=learning_rule, optimizer=optimizer, device=args.device)
+    trainer = RobustHebbianTrainer(model=model, learning_rule=learning_rule, optimizer=optimizer, device=args.device)
 
     # Attach TensorBoard logger and other handlers
     tb_logger = attach_handlers(run, model, optimizer, learning_rule, trainer, evaluator, train_loader, val_loader,
@@ -182,4 +182,4 @@ if __name__ == '__main__':
     logging.debug("Arguments: {}.".format(vars(args_)))
     logging.debug("Parameters: {}.".format(params_))
 
-    main(args_, params_, dataset_name='mnist-fashion')
+    main(args_, params_, dataset_name='mnist')

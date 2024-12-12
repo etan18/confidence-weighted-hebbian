@@ -20,10 +20,9 @@ def get_data(params, dataset_name, subset=None):
         transforms.ToTensor(),
     ])
     if dataset_name == 'mnist':
-        dataset = datasets.mnist.MNIST(root=config.DATASETS_DIR, download=True, transform=transform)
+        dataset = datasets.MNIST(root='data', download=True, transform=transform)
         if load_test:
-            test_dataset = datasets.mnist.MNIST(root=config.DATASETS_DIR, download=True, train=False,
-                                                transform=transform)
+            test_dataset = datasets.MNIST(root='data', download=True, train=False, transform=transform)
     elif dataset_name == 'mnist-fashion':
         dataset = datasets.mnist.FashionMNIST(root=config.DATASETS_DIR, download=True, transform=transform)
         if load_test:
