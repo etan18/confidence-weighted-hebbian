@@ -171,4 +171,4 @@ if __name__ == '__main__':
         'train_all': False,
     }
 
-    main(params_, dataset_name='mnist-fashion', transfer_learning=True)
+    main(params_, dataset_name='mnist', transfer_learning=False)

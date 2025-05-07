@@ -28,7 +28,7 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 
 def attach_handlers(run, model, optimizer, learning_rule, trainer, evaluator, train_loader, val_loader, params):
     # Metrics
-    UnitConvergence(model[0], learning_rule.norm).attach(trainer.engine, 'unit_conv')
+    UnitConvergence(model[0], learning_rule.norm, device=trainer.device).attach(trainer.engine, 'unit_conv')
 
     # Progress Bar
     pbar = ProgressBar(persist=True, bar_format=config.IGNITE_BAR_FORMAT)
@@ -59,7 +59,7 @@ def attach_handlers(run, model, optimizer, learning_rule, trainer, evaluator, tr
     # TensorBoard logger
     tb_logger = TensorboardLogger(log_dir=os.path.join(config.TENSORBOARD_DIR, run))
     images, labels = next(iter(train_loader))
-    tb_logger.writer.add_graph(copy.deepcopy(model).cpu(), images)
+    tb_logger.writer.add_graph(copy.deepcopy(model).cpu(), images.cpu())
     tb_logger.writer.add_hparams(params, {})
 
     # Validation metrics
@@ -109,14 +109,29 @@ def main(args: Namespace, params: dict, dataset_name, run_postfix=""):
     print("Starting run '{}'".format(run))
 
     # Loading the model
-    model = models.create_conv1_model(28, 1, num_kernels=400, n=1, batch_norm=True)
+    if dataset_name == "mnist" or dataset_name == "mnist-fashion":
+        model = models.create_conv1_model(28, 1, num_kernels=400, n=1, batch_norm=True)
+    elif dataset_name == "cifar-10":
+        model = models.create_conv1_model(
+            input_dim=32,             # Input image size
+            input_channels=3,         # RGB images
+            num_kernels=64,           # Number of convolutional filters
+            kernel_size=5,            # Convolution kernel size
+            pool_size=2,              # Pooling size
+            n=1,                      # Parameter for RePU
+            batch_norm=True,          # Include batch normalization
+            dropout=0.5               # Include dropout
+        )
+    else:
+        raise ValueError(f"Dataset name not recognized: {dataset_name}")
+        
     if args.initial_weights is not None:
         raise ValueError("Initial weights should not be used for training from scratch.")
     model.to(utils.get_device(args.device))
     print("Device set to '{}'.".format(args.device))
 
     # Data loaders
-    train_loader, val_loader = data.get_data(params, dataset_name, subset=10000)
+    train_loader, val_loader = data.get_data(params, dataset_name, subset=10000, pca=True)
 
     # Define learning rule, evaluator, and trainer
     learning_rule = RobustHebbsRule()
@@ -167,8 +182,10 @@ if __name__ == '__main__':
                         help="log directory for Tensorboard log output")
     parser.add_argument('--initial_weights', type=str, default=None,
                         help='model weights to initialize training')
-    parser.add_argument('--device', type=str, choices=['cuda', 'cpu'],
+    parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='cuda',
                         help="'cuda' (GPU) or 'cpu'")
+    parser.add_argument('--dataset', type=str, required=True, 
+                        help="'mnist' or 'mnist-fashion' or 'cifar-10'")
 
     args_ = parser.parse_args()
 
@@ -182,4 +199,4 @@ if __name__ == '__main__':
     logging.debug("Arguments: {}.".format(vars(args_)))
     logging.debug("Parameters: {}.".format(params_))
 
-    main(args_, params_, dataset_name='mnist')
+    main(args_, params_, dataset_name=args_.dataset)
